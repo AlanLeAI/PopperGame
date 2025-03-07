@@ -1,5 +1,8 @@
 import pygame
 import random
+import numpy as np
+import cv2
+from findingBalloons import *
 
 # Initialize Pygame
 pygame.init()
@@ -92,6 +95,63 @@ while running:
         # Remove balloon if it moves off the top of the screen
         if balloon.y < -70:
             balloons.remove(balloon)
+            
+    frame = pygame.surfarray.array3d(screen)
+    frame = np.rot90(frame, k=3)
+    frame = np.flip(frame, axis=1)
+    frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+
+    thresh_hold_frame = threshold_frame(frame)
+    frame_contour, bounding_boxes = find_contours(thresh_hold_frame)
+    mapping = {}
+
+    for box in bounding_boxes:
+        if len(bounding_boxes) > 0:
+            x1,y1 = box[0]
+            x2,y2 =box[1]
+            # print((x1,y1,x2,y2))
+            extract_balloon = frame[y1:y2, x1:x2, :]
+            lower_black_bgr = (0, 0, 0)
+            upper_black_bgr = (100, 100, 100)
+            mask = cv2.inRange(extract_balloon, lower_black_bgr, upper_black_bgr, cv2.THRESH_BINARY_INV)
+            # cv2.imshow("test", mask)
+            if np.sum(mask/255.0) > 2000:
+                mapping[(x1,y1,x2,y2)] = "bomb"
+                continue
+            elif np.sum(mask/255.0) == 0:
+                mapping[(x1,y1,x2,y2)] = "balloon"
+                continue
+
+            se_number = get_structure_elements("images/regular3.png")
+            mask2 = cv2.erode(mask, se_number)
+            if np.sum(mask2) < 50:
+                mapping[(x1,y1,x2,y2)] = "balloon_2"
+                continue
+
+            se_energy = get_structure_elements("images/energy1.png")
+            mask3 = cv2.erode(mask, se_number)
+            if np.sum(mask3) < 50:
+                mapping[(x1,y1,x2,y2)] = "energy"
+                continue
+    
+
+    for (x1, y1, x2, y2), label in mapping.items():
+        color = (0, 255, 0) 
+        if label == "Bomb":
+            color = (0, 0, 0) 
+        elif label == "Energy":
+            color = (255, 255, 0) 
+
+        cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+
+        cv2.rectangle(frame, (x1, y1 - 20), (x1 + 80, y1), color, -1)
+
+        cv2.putText(frame, label, (x1 + 5, y1 - 5),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+
+    cv2.imshow("test", frame)
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        running = False
 
     # Refresh display
     pygame.display.flip()
