@@ -29,3 +29,59 @@ def find_contours(img):
             bounding_boxes.append([(x,y), (x+w,y+h)])
             cv2.rectangle(img_contour, (x,y), (x+w,y+h), (0,255,0),2)
     return img_contour, bounding_boxes
+
+def crop_blank_spaces(se):
+    crop_vert = crop_se_vert(se)
+    return crop_se_hori(crop_vert)
+
+def crop_se_vert(se):
+    white_rows = np.where(se.any(axis=1))[0]
+    if len(white_rows) > 0:
+        first_white_row = white_rows[0]
+        last_white_row = white_rows[-1]
+        return se[first_white_row:last_white_row + 1, :]
+    else:
+        print("No white pixels found in the mask")
+        return se
+
+def crop_se_hori(se):
+    white_cols = np.where(se.any(axis=0))[0]
+    if len(white_cols) > 0:
+        first_white_col = white_cols[0]
+        last_white_col = white_cols[-1]
+        return se[:, first_white_col:last_white_col + 1]
+    else:
+        print("No white pixels found in the mask")
+        return se
+
+def detect_energy_balloon(balloon):
+    se_energy = get_structure_elements("images/energy1.png")
+    cropped_mask = crop_blank_spaces(balloon)
+    mask = cv2.dilate(cropped_mask, np.ones((2, 2), dtype=np.uint8))
+    # cv2.imshow("cropped_mask", mask)
+    cropped_se = crop_blank_spaces(se_energy)
+    erode_se = cv2.erode(cropped_se, np.ones((2, 2), dtype=np.uint8))
+    match = cv2.erode(mask, erode_se)
+    cv2.imshow("match", match)
+    print(sum(sum(match)))
+    if sum(sum(match)) > 100:
+        return True
+    else:
+        return False
+
+def detect_ballon(frame, bounding_boxes):
+    result = {}
+    for box in bounding_boxes:
+        if len(bounding_boxes) > 0:
+            x1, y1 = box[0]
+            x2, y2 = box[1]
+            extract_balloon = frame[y1:y2, x1:x2, :]
+            lower_black_bgr = (0, 0, 0)
+            upper_black_bgr = (100, 100, 100)
+            mask = cv2.inRange(extract_balloon, lower_black_bgr, upper_black_bgr, cv2.THRESH_BINARY_INV)
+            cv2.imshow("mask", mask)
+            if detect_energy_balloon(mask):
+                result[(x1,y1,x2,y2)] = "energy"
+
+    print(result)
+    return result
