@@ -1,49 +1,54 @@
 import cv2
 import numpy as np
 
-# Load video
-cap = cv2.VideoCapture(1)  # Use 0 for webcam
+pts_src = []
+def click_event(event, x, y, flags, param):
+    global pts_src
 
-# Define the four corner points of the skewed ROI in the original frame
-pts_src = np.float32([
-    (100, 200),  # Top-left
-    (400, 180),  # Top-right
-    (450, 350),  # Bottom-right
-    (120, 380)   # Bottom-left
-])
+    if event == cv2.EVENT_LBUTTONDOWN:
+        if len(pts_src) < 4:
+            pts_src.append((x, y))
 
-# Define where these points should be mapped in the output ROI (rectangular)
-width, height = 300, 300  # Define desired output size
-pts_dst = np.float32([
-    (0, 0),
-    (width, 0),
-    (width, height),
-    (0, height)
-])
+cap = cv2.VideoCapture(0)  
+cv2.namedWindow("Select ROI")
+cv2.setMouseCallback("Select ROI", click_event)
 
-# Compute the perspective transform matrix
-M = cv2.getPerspectiveTransform(pts_src, pts_dst)
+width, height = 800, 600
 
 while cap.isOpened():
     ret, frame = cap.read()
     if not ret:
         break
 
-    # Draw the skewed ROI on the original frame
-    cv2.polylines(frame, [np.int32(pts_src)], isClosed=True, color=(0, 255, 0), thickness=2)
+    original_frame = frame.copy()  
 
-    # Warp perspective to get a straightened ROI
-    warped_roi = cv2.warpPerspective(frame, M, (width, height))
+    
+    for pt in pts_src:
+        cv2.circle(frame, pt, 5, (0, 255, 0), -1)
 
-    # Display the original frame with the drawn ROI
-    cv2.imshow("Video with Skewed ROI", frame)
+    if len(pts_src) == 4:
+        pts_dst = np.float32([
+            (0, 0),
+            (width, 0),
+            (width, height),
+            (0, height)
+        ])
 
-    # Display the warped ROI
-    cv2.imshow("Warped ROI (Straightened View)", warped_roi)
+        M = cv2.getPerspectiveTransform(np.float32(pts_src), pts_dst)
+        warped_roi = cv2.warpPerspective(original_frame, M, (width, height))
+        warped_roi = cv2.rotate(warped_roi, cv2.ROTATE_90_COUNTERCLOCKWISE)
+        warped_roi = cv2.flip(warped_roi, 0)
 
-    # Press 'q' to exit
-    if cv2.waitKey(30) & 0xFF == ord('q'):
+        cv2.imshow("Warped ROI (Straightened View)", warped_roi)
+
+    cv2.imshow("Select ROI", frame)
+
+    key = cv2.waitKey(1) & 0xFF
+    if key == ord('q'):
         break
+    elif key == ord('r'):
+        pts_src.clear()
+        cv2.destroyWindow("Warped ROI (Straightened View)")
 
 cap.release()
 cv2.destroyAllWindows()

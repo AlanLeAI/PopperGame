@@ -65,10 +65,15 @@ class Balloon:
     def draw(self, screen):
         screen.blit(self.image, (self.x, self.y))
 
+    def is_clicked(self, pos):
+        x, y = pos
+        return self.x <= x <= self.x + BALLOON_WIDTH and self.y <= y <= self.y + BALLOON_HEIGHT
+
+
 # Balloon spawn settings
 balloons = []
-spawn_timer = 0  # Timer to control balloon spawn rate
-
+spawn_timer = 0 
+score = 0
 # Game loop
 running = True
 clock = pygame.time.Clock()
@@ -95,6 +100,9 @@ while running:
         # Remove balloon if it moves off the top of the screen
         if balloon.y < -70:
             balloons.remove(balloon)
+
+    # score_text = font.render(f"Score: {score}", True, RED)
+    # screen.blit(score_text, (10, 10))  # Top left
             
     frame = pygame.surfarray.array3d(screen)
     frame = np.rot90(frame, k=3)
@@ -148,6 +156,8 @@ while running:
 
         cv2.putText(frame, label, (x1 + 5, y1 - 5),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+
+    
 
     cv2.imshow("test", frame)
     if cv2.waitKey(1) & 0xFF == ord('q'):
