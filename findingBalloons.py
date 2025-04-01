@@ -85,3 +85,6 @@ def detect_ballon(frame, bounding_boxes):
 
     print(result)
     return result
+
+def numbered_balloon_detection(frame, bounding_boxes):
+    pass
