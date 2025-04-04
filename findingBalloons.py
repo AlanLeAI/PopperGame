@@ -7,11 +7,13 @@ def threshold_frame(img):
     _, img = cv2.threshold(img,200,255,cv2.THRESH_BINARY_INV)
     return img
 
-def get_structure_elements(file_path):
+def get_structure_elements(file_path, size):
     se = cv2.imread(file_path)
-    se_resized = cv2.resize(se, (100, 120))
-    _, se_thresh = cv2.threshold(se_resized,50,255,cv2.THRESH_BINARY_INV)
-    mask = cv2.cvtColor(se_thresh, cv2.COLOR_BGR2GRAY)
+    se_resized = cv2.resize(se, size)
+
+    lower_black_bgr = (0, 0, 0)
+    upper_black_bgr = (100, 100, 100)
+    mask = cv2.inRange(se_resized, lower_black_bgr, upper_black_bgr, cv2.THRESH_BINARY_INV)
     return mask
 
 def find_contours(img):
@@ -26,8 +28,9 @@ def find_contours(img):
         if area  > 1000:
             cv2.drawContours(img_contour, contours, i , (255,0,255), 2)
             x,y,w,h = cv2.boundingRect(cnt)
-            bounding_boxes.append([(x,y), (x+w,y+h)])
-            cv2.rectangle(img_contour, (x,y), (x+w,y+h), (0,255,0),2)
+            if w*h > 5000:
+                bounding_boxes.append([(x,y), (x+w,y+h)])
+                cv2.rectangle(img_contour, (x,y), (x+w,y+h), (0,255,0),2)
     return img_contour, bounding_boxes
 
 def crop_blank_spaces(se):
@@ -41,7 +44,6 @@ def crop_se_vert(se):
         last_white_row = white_rows[-1]
         return se[first_white_row:last_white_row + 1, :]
     else:
-        print("No white pixels found in the mask")
         return se
 
 def crop_se_hori(se):
@@ -51,25 +53,46 @@ def crop_se_hori(se):
         last_white_col = white_cols[-1]
         return se[:, first_white_col:last_white_col + 1]
     else:
-        print("No white pixels found in the mask")
         return se
 
-def detect_energy_balloon(balloon):
-    se_energy = get_structure_elements("images/energy1.png")
+def detect_energy_balloon(balloon,size):
+    se_energy = get_structure_elements("images/energy1.png",size)
     cropped_mask = crop_blank_spaces(balloon)
     mask = cv2.dilate(cropped_mask, np.ones((2, 2), dtype=np.uint8))
-    # cv2.imshow("cropped_mask", mask)
     cropped_se = crop_blank_spaces(se_energy)
     erode_se = cv2.erode(cropped_se, np.ones((2, 2), dtype=np.uint8))
     match = cv2.erode(mask, erode_se)
-    cv2.imshow("match", match)
-    print(sum(sum(match)))
+
+    if sum(sum(match)) > 100:
+        return True
+    else:
+        return False
+    
+def detect_bomb_balloon(balloon,size):
+    se_energy = get_structure_elements("images/bomb.png",size)
+    cropped_mask = crop_blank_spaces(balloon)
+    mask = cv2.dilate(cropped_mask, np.ones((2, 2), dtype=np.uint8))
+    cropped_se = crop_blank_spaces(se_energy)
+    erode_se = cv2.erode(cropped_se, np.ones((2, 2), dtype=np.uint8))
+    match = cv2.erode(mask, erode_se)
     if sum(sum(match)) > 100:
         return True
     else:
         return False
 
-def detect_ballon(frame, bounding_boxes):
+def detect_number_balloon(balloon,size):
+    se_energy = get_structure_elements("images/regular4.png",size)
+    cropped_mask = crop_blank_spaces(balloon)
+    mask = cv2.dilate(cropped_mask, np.ones((2, 2), dtype=np.uint8))
+    cropped_se = crop_blank_spaces(se_energy)
+    erode_se = cv2.erode(cropped_se, np.ones((2, 2), dtype=np.uint8))
+    match = cv2.erode(mask, erode_se)
+    if sum(sum(match)) > 100:
+        return True
+    else:
+        return False
+
+def detect_ballon(frame, bounding_boxes, size):
     result = {}
     for box in bounding_boxes:
         if len(bounding_boxes) > 0:
@@ -79,9 +102,13 @@ def detect_ballon(frame, bounding_boxes):
             lower_black_bgr = (0, 0, 0)
             upper_black_bgr = (100, 100, 100)
             mask = cv2.inRange(extract_balloon, lower_black_bgr, upper_black_bgr, cv2.THRESH_BINARY_INV)
-            cv2.imshow("mask", mask)
-            if detect_energy_balloon(mask):
+            if detect_bomb_balloon(mask, size):
+                result[(x1,y1,x2,y2)] = "bomb"
+            elif detect_energy_balloon(mask, size):
                 result[(x1,y1,x2,y2)] = "energy"
+            elif detect_number_balloon(mask, size):
+                result[(x1,y1,x2,y2)] = "balloon_2"
+            else:
+                result[(x1,y1,x2,y2)] = "regular"
 
-    print(result)
     return result
