@@ -3,17 +3,15 @@ import numpy as np
 import cv2
 import pygame
 
-
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
-
 
 
 class Balloon:
     def __init__(self, x, y, balloon_type, balloon_images):
         self.x = x
         self.y = y
-        self.speed = 7
+        self.speed = 20
         self.type = balloon_type
         self.image = balloon_images[balloon_type]
         self.balloon_images = balloon_images
@@ -29,7 +27,7 @@ class Balloon:
 
     def is_clicked(self, pos):
         return self.rect.collidepoint(pos)
-    
+
     def hit(self):
         self.hits_required -= 1
         if self.type == "regular4" and self.hits_required == 1:
@@ -43,10 +41,9 @@ class Balloon:
         return self.hits_required == 0
 
 
+def set_up_roi(camera_number, pts_src, pygame):
+    cap = cv2.VideoCapture(camera_number)
 
-
-def set_up_roi(pts_src, pygame):
-    cap = cv2.VideoCapture(0)
     def click_event(event, x, y, flags, param):
         if event == cv2.EVENT_LBUTTONDOWN and len(pts_src) < 4:
             pts_src.append((x, y))
@@ -59,10 +56,10 @@ def set_up_roi(pts_src, pygame):
         ret, frame = cap.read()
         if not ret:
             break
-        
+
         for pt in pts_src:
             cv2.circle(frame, pt, 5, (0, 255, 0), -1)  # Green dots for selected points
-        
+
         cv2.imshow("Camera", frame)
         pygame.display.flip()
         if cv2.waitKey(1) & 0xFF == ord('q'):
