@@ -110,6 +110,12 @@ while running:
                 color = (0, 0, 0)
             elif label == "Energy":
                 color = (255, 255, 0)
+            
+            box_width = x2 - x1
+            box_height = y2 - y1
+            
+            if box_width > 150 or box_height > 150:
+                continue
 
             cv2.rectangle(warped_roi, (x1, y1), (x2, y2), color, 2)
             cv2.rectangle(warped_roi, (x1, y1 - 20), (x1 + 80, y1), color, -1)
