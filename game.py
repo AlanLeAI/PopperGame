@@ -79,7 +79,7 @@ while running:
                         balloons.remove(balloon)
 
     spawn_timer += 1
-    if spawn_timer > 60:
+    if spawn_timer > 30:
         x_pos = random.randint(119, WIDTH - 237)
         balloon_type = random.choice(list(balloon_images.keys()))
         balloons.append(Balloon(x_pos, HEIGHT, balloon_type, balloon_images))
@@ -101,6 +101,7 @@ while running:
 
     if warped_roi is not None:
         thresh_hold_frame = threshold_frame(warped_roi)
+        
         frame_contour, bounding_boxes = find_contours(thresh_hold_frame)
         mapping = detect_ballon(warped_roi, bounding_boxes, BALLOON_SIZE)
         for (x1, y1, x2, y2), label in mapping.items():
