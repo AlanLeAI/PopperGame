@@ -1,13 +1,15 @@
 import numpy as np
 import cv2
 
+
 def threshold_frame(img):
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY )
-    img = cv2.GaussianBlur(img, (5,5), 1)
-    _, img = cv2.threshold(img,165,255,cv2.THRESH_BINARY_INV)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    img = cv2.GaussianBlur(img, (5, 5), 1)
+    _, img = cv2.threshold(img, 165, 255, cv2.THRESH_BINARY_INV)
     return img
 
-def get_structure_elements(file_path, size = None):
+
+def get_structure_elements(file_path, size=None):
     se = cv2.imread(file_path)
     if size:
         se_resized = cv2.resize(se, size)
@@ -20,26 +22,28 @@ def get_structure_elements(file_path, size = None):
         mask = cv2.inRange(se, lower_black_bgr, upper_black_bgr, cv2.THRESH_BINARY_INV)
     return mask
 
+
 def find_contours(img):
-    h,w= img.shape
-    img_contour = np.zeros((h,w,3), np.int8)
-    contours, hierachy = cv2.findContours(img ,cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE )
+    h, w = img.shape
+    img_contour = np.zeros((h, w, 3), np.int8)
+    contours, hierachy = cv2.findContours(img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     bounding_boxes = []
-    
+
     for i, cnt in enumerate(contours):
         area = cv2.contourArea(cnt)
-        if area > 1000:
-            cv2.drawContours(img_contour, contours, i , (255,0,255), 2)
-            x,y,w,h = cv2.boundingRect(cnt)
-            # print("x,y,w,h: ", x,y,w,h)
-            if w*h > 5000:
-                bounding_boxes.append([(x,y), (x+w,y+h)])
-                cv2.rectangle(img_contour, (x,y), (x+w,y+h), (0,255,0),2)
+        if area > 5000:
+            cv2.drawContours(img_contour, contours, i, (255, 0, 255), 2)
+            x, y, w, h = cv2.boundingRect(cnt)
+            if w * h > 5000:
+                bounding_boxes.append([(x, y), (x + w, y + h)])
+                cv2.rectangle(img_contour, (x, y), (x + w, y + h), (0, 255, 0), 2)
     return img_contour, bounding_boxes
+
 
 def crop_blank_spaces(se):
     crop_vert = crop_se_vert(se)
     return crop_se_hori(crop_vert)
+
 
 def crop_se_vert(se):
     white_rows = np.where(se.any(axis=1))[0]
@@ -50,6 +54,7 @@ def crop_se_vert(se):
     else:
         return se
 
+
 def crop_se_hori(se):
     white_cols = np.where(se.any(axis=0))[0]
     if len(white_cols) > 0:
@@ -59,86 +64,49 @@ def crop_se_hori(se):
     else:
         return se
 
+
 def detect_energy_balloon(balloon, box_size):
-    # mask = cv2.morphologyEx(balloon, cv2.MORPH_OPEN, np.ones((5, 5), dtype=np.uint8))
-    # cv2.imshow("mask", mask)
-    # cropped_mask = crop_blank_spaces(mask)
-    # cv2.imshow("cropped_mask", cropped_mask)
-    #
-    # se_energy = get_structure_elements("images/energy1.png", box_size)
-    # cropped_se = crop_blank_spaces(se_energy)
-    # erode_se = cv2.erode(cropped_se, np.ones((2, 2), dtype=np.uint8))
-    # cv2.imshow("erode_se", erode_se)
-    # match = cv2.erode(cropped_mask, erode_se)
-    # cv2.imshow("match", match)
-    # print(sum(sum(match)))
-    # if sum(sum(match)) > 5:
-    #     return True
-    # else:
-    #     return False
-
-
-
-
-
+    balloon = cv2.morphologyEx(balloon, cv2.MORPH_OPEN, np.ones((3, 3), dtype=np.uint8))
     cropped_mask = crop_blank_spaces(balloon)
-    cropped_mask = cv2.erode(cropped_mask, np.ones((5, 5), dtype=np.uint8))
-    cropped_mask = cv2.dilate(cropped_mask, np.ones((3, 3), dtype=np.uint8))
-    cv2.imshow("cropped_mask", cropped_mask)
-    se_energy = get_structure_elements("images/energy1.png", box_size)
+    mask = cv2.dilate(cropped_mask, np.ones((3, 3), dtype=np.uint8), iterations=4)
+
+    se_energy = get_structure_elements("images/energy1.png")
     cropped_se = crop_blank_spaces(se_energy)
-    erode_se = cv2.erode(cropped_se, np.ones((2, 2), dtype=np.uint8))
-    cv2.imshow("erode_se", erode_se)
-    # erode_se = se_energy
-    match = cv2.erode(cropped_mask, erode_se)
-    cv2.imshow("match", match)
+    erode_se = cv2.erode(cropped_se, np.ones((2, 2), dtype=np.uint8), iterations=3)
+    erode_se = cv2.resize(erode_se, (mask.shape[1], mask.shape[0]))
+    match = cv2.erode(mask, erode_se)
     if sum(sum(match)) > 5:
         return True
     else:
         return False
-    
+
+
 def detect_bomb_balloon(balloon, box_size):
-    mask = cv2.morphologyEx(balloon, cv2.MORPH_OPEN, np.ones((3,3), dtype=np.uint8))
-    # cv2.imshow("mask", mask)
+    mask = cv2.morphologyEx(balloon, cv2.MORPH_OPEN, np.ones((3, 3), dtype=np.uint8))
     cropped_mask = crop_blank_spaces(mask)
-    # cv2.imshow("cropped_mask", cropped_mask)
-    # mask = cv2.erode(cropped_mask, np.ones((3,3), dtype=np.uint8))
-    # mask = cv2.dilate(mask, np.ones((3, 3), dtype=np.uint8))
+    mask = cv2.dilate(cropped_mask, np.ones((3, 3), dtype=np.uint8), iterations=2)
 
     se_bomb = get_structure_elements("images/bomb.png", box_size)
     cropped_se = crop_blank_spaces(se_bomb)
     erode_se = cv2.erode(cropped_se, np.ones((3, 3), dtype=np.uint8))
-    match = cv2.erode(cropped_mask, erode_se)
-    # cv2.imshow("match", match)
-    # print("bomb", sum(sum(match)))
+    match = cv2.erode(mask, erode_se)
     if sum(sum(match)) > 5:
         return True
     else:
         return False
+
 
 def detect_number_balloon(balloon, box_size):
-    balloon = cv2.morphologyEx(balloon, cv2.MORPH_OPEN, np.ones((3,3), dtype=np.uint8))
+    balloon = cv2.morphologyEx(balloon, cv2.MORPH_OPEN, np.ones((3, 3), dtype=np.uint8))
     cropped_mask = crop_blank_spaces(balloon)
-    mask = cv2.dilate(cropped_mask, np.ones((2, 2), dtype=np.uint8))
-    cv2.imshow("mask", mask)
+    mask = cv2.dilate(cropped_mask, np.ones((3, 3), dtype=np.uint8), iterations=4)
 
-    se_energy = get_structure_elements("images/num2.png")
-    cropped_se = crop_blank_spaces(se_energy)
-    erode_se = cv2.erode(cropped_se, np.ones((2, 2), dtype=np.uint8))
-    cv2.imshow("erode_se", erode_se)
+    se_number = get_structure_elements("images/regular4.png")
+    cropped_se = crop_blank_spaces(se_number)
+    erode_se = cv2.erode(cropped_se, np.ones((2, 2), dtype=np.uint8), iterations=3)
+    erode_se = cv2.resize(erode_se, (mask.shape[1], mask.shape[0]))
     match = cv2.erode(mask, erode_se)
-    print("number:", sum(sum(match)))
     if sum(sum(match)) > 5:
-        return True
-    else:
-        return False
-
-def detect_regular_balloon(balloon):
-    mask = cv2.erode(balloon, np.ones((3,3), dtype=np.uint8), iterations=4)
-    cv2.imshow("mask", mask)
-    # mask = cv2.erode(mask, np.ones((5, 5), dtype=np.uint8))
-    print("regular", sum(sum(mask)))
-    if sum(sum(mask)) < 10:
         return True
     else:
         return False
@@ -159,20 +127,16 @@ def detect_ballon(frame, bounding_boxes, size=None):
 
             extract_balloon = frame[y1:y2, x1:x2, :]
             lower_black_bgr = (0, 0, 0)
-            upper_black_bgr = (170, 170, 170)
+            upper_black_bgr = (138, 138, 138)
             mask = cv2.inRange(extract_balloon, lower_black_bgr, upper_black_bgr, cv2.THRESH_BINARY_INV)
             box_size = (box_width, box_height)
             cv2.imshow("extract_balloon_mask", mask)
             if detect_bomb_balloon(mask, box_size):
-                result[(x1,y1,x2,y2)] = "bomb"
-            # elif detect_energy_balloon(mask, box_size):
-            #     result[(x1,y1,x2,y2)] = "energy"
-            elif detect_regular_balloon(mask):
-                result[(x1,y1,x2,y2)] = "regular"
-            # elif detect_number_balloon(mask, box_size):
-            #     result[(x1,y1,x2,y2)] = "balloon_2"
-            else:
+                result[(x1, y1, x2, y2)] = "bomb"
+            elif detect_energy_balloon(mask, box_size):
+                result[(x1, y1, x2, y2)] = "energy"
+            elif detect_number_balloon(mask, box_size):
                 result[(x1, y1, x2, y2)] = "balloon_2"
-            # else:
-            #     result[(x1,y1,x2,y2)] = "regular"
+            else:
+                result[(x1, y1, x2, y2)] = "regular"
     return result
