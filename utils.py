@@ -29,14 +29,14 @@ class Balloon:
 
     def hit(self):
         self.hits_required -= 1
-        if self.type == "regular4" and self.hits_required == 1:
+        if self.type == "number" and self.hits_required == 1:
             self.type = "regular2"
             self.image = self.balloon_images["regular2"]
             return False
-        elif self.type == "regular3" and self.hits_required == 1:
-            self.type = "regular5"
-            self.image = self.balloon_images["regular5"]
-            return False
+        # elif self.type == "regular3" and self.hits_required == 1:
+        #     self.type = "regular5"
+        #     self.image = self.balloon_images["regular5"]
+        #     return False
         return self.hits_required == 0
 
 

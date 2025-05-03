@@ -169,16 +169,20 @@ def detect_yellow_obj(frame):
 
         x, y, w, h = cv2.boundingRect(combined_contour)
 
-        cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+        if w > 50 and w < 150 and h > 50 and h < 150:
 
-        center_x = x + w // 2
-        center_y = y + h // 2
+            print(f"yellow_obj: {x}, {y}, {w}, {h}")
 
-        temp = frame.copy()
-        temp[yellow_mask != 255] = (0, 0, 0)
-        cv2.imshow("yellow_obj", temp)
+            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
-        return center_x, center_y
+            center_x = x + w // 2
+            center_y = y + h // 2
+
+            temp = frame.copy()
+            temp[yellow_mask != 255] = (0, 0, 0)
+            cv2.imshow("yellow_obj", temp)
+
+            return center_x, center_y
     return None, None
 
 
