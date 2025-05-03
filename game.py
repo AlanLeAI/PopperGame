@@ -1,3 +1,5 @@
+import pygame
+import random
 from findingBalloons import *
 from utils import *
 
@@ -27,17 +29,19 @@ balloon_images = {
     # "regular1": pygame.transform.scale(load_transparent_image("images/regular1.png"), BALLOON_SIZE),
     # "regular6": pygame.transform.scale(load_transparent_image("images/regular6.png"), BALLOON_SIZE_2),
     "regular2": pygame.transform.scale(load_transparent_image("images/regular2.png"), BALLOON_SIZE),
-    "regular4": pygame.transform.scale(load_transparent_image("images/regular4.png"), BALLOON_SIZE),
+    "number": pygame.transform.scale(load_transparent_image("images/regular4.png"), BALLOON_SIZE),
     "regular5": pygame.transform.scale(load_transparent_image("images/regular5.png"), BALLOON_SIZE),
-    "energy": pygame.transform.scale(load_transparent_image("images/energy1.png"), BALLOON_SIZE),
-    "bomb": pygame.transform.scale(load_transparent_image("images/bomb.png"), BALLOON_SIZE)
+    # "energy": pygame.transform.scale(load_transparent_image("images/energy1.png"), BALLOON_SIZE),
+    "bomb": pygame.transform.scale(load_transparent_image("images/bomb_1.png"), BALLOON_SIZE)
 }
 
 balloons = []
+balloon_id = 1
 spawn_timer = 0
 score = 0
 pts_src = []
-pts_src = [(300, 189), (287, 959), (1737, 969), (1731, 201)]
+previous_mapping = {}
+pts_src = [(300, 255), (266, 962), (1584, 961), (1564, 279)]
 camera_number = 0
 # pts_src = set_up_roi(camera_number, pts_src, pygame)
 # print(pts_src)
@@ -78,7 +82,8 @@ while running:
     if spawn_timer > 30:
         x_pos = random.randint(119, WIDTH - 237)
         balloon_type = random.choice(list(balloon_images.keys()))
-        balloons.append(Balloon(x_pos, HEIGHT, balloon_type, balloon_images))
+        balloons.append(Balloon(balloon_id, x_pos, HEIGHT, balloon_type, balloon_images))
+        balloon_id += 1
         spawn_timer = 0
 
     for balloon in balloons[:]:
@@ -100,13 +105,23 @@ while running:
 
         cv2.imshow("thresh_hold_frame", thresh_hold_frame)
         frame_contour, bounding_boxes = find_contours(thresh_hold_frame)
-        mapping = detect_ballon(warped_roi, bounding_boxes, BALLOON_SIZE)
-        for (x1, y1, x2, y2), label in mapping.items():
+        mapping = detect_ballon(warped_roi, bounding_boxes, balloons, BALLOON_SIZE)
+        for (x1, y1, x2, y2), balloon in mapping.items():
             color = (0, 255, 0)
-            if label == "Bomb":
+            font_color = (0, 0, 0)
+            if balloon.type == "bomb":
+                label = f"{balloon.type}_{balloon.id}"
                 color = (0, 0, 255)
-            elif label == "Energy":
+                font_color = (255, 255, 255)
+            elif balloon.type == f"energy":
+                label = f"{balloon.type}_{balloon.id}"
                 color = (255, 255, 0)
+            elif balloon.type == f"number":
+                label = f"{balloon.type}_{balloon.id}"
+                color = (255, 0, 0)
+                font_color = (255, 255, 255)
+            else:
+                label = f"{balloon.type}_{balloon.id}"
 
             box_width = x2 - x1
             box_height = y2 - y1
@@ -115,8 +130,21 @@ while running:
                 continue
 
             cv2.rectangle(warped_roi, (x1, y1), (x2, y2), color, 2)
-            cv2.rectangle(warped_roi, (x1, y1 - 20), (x1 + 80, y1), color, -1)
-            cv2.putText(warped_roi, label, (x1 + 5, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+            cv2.rectangle(warped_roi, (x1, y1 - 25), (x1 + 120, y1), color, -1)
+            cv2.putText(warped_roi, label, (x1 + 5, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.7, font_color, 2)
+
+        yellow_obj_detected = detect_yellow_obj(warped_roi)
+        collision = detect_collision(yellow_obj_detected, mapping)
+        if collision:
+            print(f"Type: {collision[1].type}_{collision[1].id}")
+            balloon = collision[1]
+            popped = balloon.hit()
+            if popped:
+                if balloon.type == "bomb":
+                    score -= 1
+                else:
+                    score += 1
+                balloons.remove(balloon)
 
         cv2.imshow("test", warped_roi)
     if cv2.waitKey(1) & 0xFF == ord('q'):

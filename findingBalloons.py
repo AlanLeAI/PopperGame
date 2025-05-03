@@ -1,4 +1,5 @@
 import numpy as np
+import math
 import cv2
 
 
@@ -86,7 +87,7 @@ def detect_bomb_balloon(balloon, box_size):
     cropped_mask = crop_blank_spaces(mask)
     mask = cv2.dilate(cropped_mask, np.ones((3, 3), dtype=np.uint8), iterations=2)
 
-    se_bomb = get_structure_elements("images/bomb.png", box_size)
+    se_bomb = get_structure_elements("images/bomb_1.png", box_size)
     cropped_se = crop_blank_spaces(se_bomb)
     erode_se = cv2.erode(cropped_se, np.ones((3, 3), dtype=np.uint8))
     match = cv2.erode(mask, erode_se)
@@ -112,7 +113,7 @@ def detect_number_balloon(balloon, box_size):
         return False
 
 
-def detect_ballon(frame, bounding_boxes, size=None):
+def detect_ballon(frame, bounding_boxes, balloons, size=None):
     result = {}
     for box in bounding_boxes:
         if len(bounding_boxes) > 0:
@@ -127,16 +128,71 @@ def detect_ballon(frame, bounding_boxes, size=None):
 
             extract_balloon = frame[y1:y2, x1:x2, :]
             lower_black_bgr = (0, 0, 0)
-            upper_black_bgr = (138, 138, 138)
+            upper_black_bgr = (140, 140, 140)
             mask = cv2.inRange(extract_balloon, lower_black_bgr, upper_black_bgr, cv2.THRESH_BINARY_INV)
             box_size = (box_width, box_height)
             cv2.imshow("extract_balloon_mask", mask)
             if detect_bomb_balloon(mask, box_size):
-                result[(x1, y1, x2, y2)] = "bomb"
+                label = "bomb"
             elif detect_energy_balloon(mask, box_size):
-                result[(x1, y1, x2, y2)] = "energy"
+                label = "energy"
             elif detect_number_balloon(mask, box_size):
-                result[(x1, y1, x2, y2)] = "balloon_2"
+                label = "number"
             else:
-                result[(x1, y1, x2, y2)] = "regular"
+                label = "regular"
+
+            closest_balloon = None
+            min_distance = float('inf')
+            for balloon in balloons:
+                distance = math.sqrt((x1 - balloon.x) ** 2 + (y1 - balloon.y) ** 2)
+                if distance < min_distance and label in balloon.type:
+                    min_distance = distance
+                    closest_balloon = balloon
+
+            if closest_balloon:
+                result[(x1, y1, x2, y2)] = closest_balloon
     return result
+
+
+def detect_yellow_obj(frame):
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    yellow_mask = cv2.inRange(hsv, (10, 70, 70), (30, 255, 255))
+    yellow_mask = cv2.morphologyEx(yellow_mask, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
+    yellow_mask = cv2.morphologyEx(yellow_mask, cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
+    yellow_mask = cv2.dilate(yellow_mask, np.ones((30, 30), np.uint8), iterations=1)
+    cv2.imshow("yellow_mask", yellow_mask)
+
+    contours, _ = cv2.findContours(yellow_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    if len(contours) > 0:
+        combined_contour = np.vstack(contours)
+
+        x, y, w, h = cv2.boundingRect(combined_contour)
+
+        cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+
+        center_x = x + w // 2
+        center_y = y + h // 2
+
+        temp = frame.copy()
+        temp[yellow_mask != 255] = (0, 0, 0)
+        cv2.imshow("yellow_obj", temp)
+
+        return center_x, center_y
+    return None, None
+
+
+def detect_collision(center, mapping):
+    if center is None:
+        return None
+
+    cx, cy = center
+
+    try:
+        for (x1, y1, x2, y2), balloon in mapping.items():
+            if x1 <= cx <= x2 and y1 <= cy <= y2:
+                return (x1, y1, x2, y2), balloon
+    except Exception as ex:
+        return None
+
+    return None

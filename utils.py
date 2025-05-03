@@ -1,14 +1,13 @@
-import random
-import numpy as np
 import cv2
-import pygame
+
 
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 
 
 class Balloon:
-    def __init__(self, x, y, balloon_type, balloon_images):
+    def __init__(self, id, x, y, balloon_type, balloon_images):
+        self.id = id
         self.x = x
         self.y = y
         self.speed = 20
@@ -16,7 +15,7 @@ class Balloon:
         self.image = balloon_images[balloon_type]
         self.balloon_images = balloon_images
         self.rect = self.image.get_rect(topleft=(self.x, self.y))
-        self.hits_required = 2 if balloon_type == "regular4" or "regular3" else 1
+        self.hits_required = 2 if balloon_type == "regular4" else 1
 
     def move(self):
         self.y -= self.speed
@@ -51,7 +50,6 @@ def set_up_roi(camera_number, pts_src, pygame):
     cv2.namedWindow("Camera")
     cv2.setMouseCallback("Camera", click_event)
 
-    # Wait for ROI Selection
     while len(pts_src) < 4:
         ret, frame = cap.read()
         if not ret:
