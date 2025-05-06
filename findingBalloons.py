@@ -115,6 +115,7 @@ def detect_number_balloon(balloon, box_size):
 
 def detect_ballon(frame, bounding_boxes, balloons, size=None):
     result = {}
+    popping = {}
     for box in bounding_boxes:
         if len(bounding_boxes) > 0:
             x1, y1 = box[0]
@@ -128,7 +129,7 @@ def detect_ballon(frame, bounding_boxes, balloons, size=None):
 
             extract_balloon = frame[y1:y2, x1:x2, :]
             lower_black_bgr = (0, 0, 0)
-            upper_black_bgr = (140, 140, 140)
+            upper_black_bgr = (150, 150, 150)
             mask = cv2.inRange(extract_balloon, lower_black_bgr, upper_black_bgr, cv2.THRESH_BINARY_INV)
             box_size = (box_width, box_height)
             cv2.imshow("extract_balloon_mask", mask)
@@ -145,18 +146,19 @@ def detect_ballon(frame, bounding_boxes, balloons, size=None):
             min_distance = float('inf')
             for balloon in balloons:
                 distance = math.sqrt((x1 - balloon.x) ** 2 + (y1 - balloon.y) ** 2)
-                if distance < min_distance and label in balloon.type:
+                if distance < min_distance:
                     min_distance = distance
                     closest_balloon = balloon
 
             if closest_balloon:
                 result[(x1, y1, x2, y2)] = closest_balloon
-    return result
+                popping[closest_balloon.id] = {"detection": (x1, y1, x2, y2), "balloon": closest_balloon}
+    return result, popping
 
 
 def detect_yellow_obj(frame):
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-    yellow_mask = cv2.inRange(hsv, (10, 70, 70), (30, 255, 255))
+    yellow_mask = cv2.inRange(hsv, (10, 60, 60), (30, 255, 255))
     yellow_mask = cv2.morphologyEx(yellow_mask, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
     yellow_mask = cv2.morphologyEx(yellow_mask, cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
     yellow_mask = cv2.dilate(yellow_mask, np.ones((30, 30), np.uint8), iterations=1)
@@ -170,9 +172,6 @@ def detect_yellow_obj(frame):
         x, y, w, h = cv2.boundingRect(combined_contour)
 
         if w > 50 and w < 150 and h > 50 and h < 150:
-
-            print(f"yellow_obj: {x}, {y}, {w}, {h}")
-
             cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
 
             center_x = x + w // 2

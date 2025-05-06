@@ -1,6 +1,5 @@
 import cv2
 
-
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 
@@ -10,12 +9,12 @@ class Balloon:
         self.id = id
         self.x = x
         self.y = y
-        self.speed = 20
+        self.speed = 10
         self.type = balloon_type
         self.image = balloon_images[balloon_type]
         self.balloon_images = balloon_images
         self.rect = self.image.get_rect(topleft=(self.x, self.y))
-        self.hits_required = 2 if balloon_type == "regular4" else 1
+        self.hits_required = 2 if balloon_type == "number" else 1
 
     def move(self):
         self.y -= self.speed
