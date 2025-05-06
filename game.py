@@ -50,6 +50,10 @@ print(pts_src)
 cap = cv2.VideoCapture(camera_number)
 running = True
 clock = pygame.time.Clock()
+balloon_sound = load_sound("balloon1.wav", "game_sound")
+background_sound = load_sound("background.mp3", "game_sound")
+background_sound.play(-1)
+background_sound.set_volume(0.5)
 
 while running:
     ret, frame = cap.read()
@@ -141,6 +145,7 @@ while running:
         if collision:
             balloon = collision[1]
             popped = balloon.hit()
+            balloon_sound.play()
             if popped:
                 if balloon.type == "bomb":
                     score -= 1

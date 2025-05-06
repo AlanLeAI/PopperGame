@@ -1,4 +1,6 @@
 import cv2
+import pygame
+import os
 
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
@@ -65,3 +67,20 @@ def set_up_roi(camera_number, pts_src, pygame):
     cap.release()
     cv2.destroyAllWindows()
     return pts_src
+
+
+def load_sound(name, data_dir):
+    class NoneSound:
+        def play(self):
+            pass
+
+    if not pygame.mixer.get_init():
+        return NoneSound()
+
+    try:
+        fullname = os.path.join(data_dir, name)
+        sound = pygame.mixer.Sound(fullname)
+        return sound
+    except pygame.error:
+        print(f"Warning: Sound file '{name}' not found or unable to load")
+        return NoneSound()
