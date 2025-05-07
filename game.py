@@ -31,7 +31,7 @@ balloon_images = {
     "regular2": pygame.transform.scale(load_transparent_image("images/regular2.png"), BALLOON_SIZE),
     "number": pygame.transform.scale(load_transparent_image("images/regular4.png"), BALLOON_SIZE),
     "regular5": pygame.transform.scale(load_transparent_image("images/regular5.png"), BALLOON_SIZE),
-    # "energy": pygame.transform.scale(load_transparent_image("images/energy1.png"), BALLOON_SIZE),
+    "energy": pygame.transform.scale(load_transparent_image("images/energy1.png"), BALLOON_SIZE),
     "bomb": pygame.transform.scale(load_transparent_image("images/bomb_1.png"), BALLOON_SIZE)
 }
 
@@ -41,15 +41,19 @@ spawn_timer = 0
 score = 0
 pts_src = []
 previous_mapping = {}
-pts_src = [(300, 255), (266, 962), (1584, 961), (1564, 279)]
+# pts_src = [(292, 169), (296, 864), (1601, 866), (1611, 169)]
 camera_number = 0
-# pts_src = set_up_roi(camera_number, pts_src, pygame)
-# print(pts_src)
+pts_src = set_up_roi(camera_number, pts_src, pygame)
+print(pts_src)
 
 # Game loop
 cap = cv2.VideoCapture(camera_number)
 running = True
 clock = pygame.time.Clock()
+balloon_sound = load_sound("balloon1.wav", "game_sound")
+background_sound = load_sound("background.mp3", "game_sound")
+background_sound.play(-1)
+background_sound.set_volume(0.5)
 
 while running:
     ret, frame = cap.read()
@@ -79,7 +83,9 @@ while running:
                         balloons.remove(balloon)
 
     spawn_timer += 1
-    if spawn_timer > 30:
+    if spawn_timer > 60:
+        # x_pos = random.randint(900, WIDTH - 237)
+        # x_pos = random.randint(119, WIDTH - 900)
         x_pos = random.randint(119, WIDTH - 237)
         balloon_type = random.choice(list(balloon_images.keys()))
         balloons.append(Balloon(balloon_id, x_pos, HEIGHT, balloon_type, balloon_images))
@@ -105,7 +111,8 @@ while running:
 
         cv2.imshow("thresh_hold_frame", thresh_hold_frame)
         frame_contour, bounding_boxes = find_contours(thresh_hold_frame)
-        mapping = detect_ballon(warped_roi, bounding_boxes, balloons, BALLOON_SIZE)
+        cv2.imshow("frame_contour", frame_contour)
+        mapping, popping = detect_ballon(warped_roi, bounding_boxes, balloons, BALLOON_SIZE)
         for (x1, y1, x2, y2), balloon in mapping.items():
             color = (0, 255, 0)
             font_color = (0, 0, 0)
@@ -136,15 +143,31 @@ while running:
         yellow_obj_detected = detect_yellow_obj(warped_roi)
         collision = detect_collision(yellow_obj_detected, mapping)
         if collision:
-            print(f"Type: {collision[1].type}_{collision[1].id}")
             balloon = collision[1]
             popped = balloon.hit()
+            balloon_sound.play()
             if popped:
                 if balloon.type == "bomb":
                     score -= 1
+                    balloons.remove(balloon)
+                elif balloon.type == "energy":
+                    score += 1
+                    balloons.remove(balloon)
+                    for rem_balloon in balloons:
+                        if rem_balloon.type == "bomb":
+                            continue
+                        if rem_balloon.type == "energy":
+                            score += 1
+                            balloons.remove(rem_balloon)
+                        elif rem_balloon.id in popping:
+                            if rem_balloon.type == "number":
+                                score += 2
+                            else:
+                                score += 1
+                            balloons.remove(rem_balloon)
                 else:
                     score += 1
-                balloons.remove(balloon)
+                    balloons.remove(balloon)
 
         cv2.imshow("test", warped_roi)
     if cv2.waitKey(1) & 0xFF == ord('q'):

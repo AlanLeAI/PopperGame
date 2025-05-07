@@ -1,5 +1,6 @@
 import cv2
-
+import pygame
+import os
 
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
@@ -10,12 +11,12 @@ class Balloon:
         self.id = id
         self.x = x
         self.y = y
-        self.speed = 20
+        self.speed = 10
         self.type = balloon_type
         self.image = balloon_images[balloon_type]
         self.balloon_images = balloon_images
         self.rect = self.image.get_rect(topleft=(self.x, self.y))
-        self.hits_required = 2 if balloon_type == "regular4" else 1
+        self.hits_required = 2 if balloon_type == "number" else 1
 
     def move(self):
         self.y -= self.speed
@@ -66,3 +67,20 @@ def set_up_roi(camera_number, pts_src, pygame):
     cap.release()
     cv2.destroyAllWindows()
     return pts_src
+
+
+def load_sound(name, data_dir):
+    class NoneSound:
+        def play(self):
+            pass
+
+    if not pygame.mixer.get_init():
+        return NoneSound()
+
+    try:
+        fullname = os.path.join(data_dir, name)
+        sound = pygame.mixer.Sound(fullname)
+        return sound
+    except pygame.error:
+        print(f"Warning: Sound file '{name}' not found or unable to load")
+        return NoneSound()
