@@ -11,7 +11,7 @@ class Balloon:
         self.id = id
         self.x = x
         self.y = y
-        self.speed = 10
+        self.speed = 15
         self.type = balloon_type
         self.image = balloon_images[balloon_type]
         self.balloon_images = balloon_images

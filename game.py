@@ -2,6 +2,7 @@ import pygame
 import random
 from findingBalloons import *
 from utils import *
+import time
 
 pygame.init()
 WIDTH, HEIGHT = 1900, 1050
@@ -54,6 +55,7 @@ balloon_sound = load_sound("balloon1.wav", "game_sound")
 background_sound = load_sound("background.mp3", "game_sound")
 background_sound.play(-1)
 background_sound.set_volume(0.5)
+prev_time = time.time()
 
 while running:
     ret, frame = cap.read()
@@ -83,7 +85,7 @@ while running:
                         balloons.remove(balloon)
 
     spawn_timer += 1
-    if spawn_timer > 60:
+    if spawn_timer > 30:
         # x_pos = random.randint(900, WIDTH - 237)
         # x_pos = random.randint(119, WIDTH - 900)
         x_pos = random.randint(119, WIDTH - 237)
@@ -142,10 +144,16 @@ while running:
 
         yellow_obj_detected = detect_yellow_obj(warped_roi)
         collision = detect_collision(yellow_obj_detected, mapping)
-        if collision:
+        curr_time = time.time()
+        # print(collision)
+        if collision and (curr_time - prev_time) > 1:
+            print(curr_time - prev_time)
             balloon = collision[1]
+            print("collision: ", balloon.type, "_", balloon.id)
             popped = balloon.hit()
             balloon_sound.play()
+            for id in popping:
+                print(f"{popping[id]['balloon'].type}_{popping[id]['balloon'].id}")
             if popped:
                 if balloon.type == "bomb":
                     score -= 1
@@ -154,20 +162,24 @@ while running:
                     score += 1
                     balloons.remove(balloon)
                     for rem_balloon in balloons:
-                        if rem_balloon.type == "bomb":
-                            continue
-                        if rem_balloon.type == "energy":
-                            score += 1
-                            balloons.remove(rem_balloon)
-                        elif rem_balloon.id in popping:
-                            if rem_balloon.type == "number":
+                        print(f"Remaining balloon: {rem_balloon.type}_{rem_balloon.id}")
+                        if rem_balloon.id in popping:
+                            if rem_balloon.type == "bomb":
+                                continue
+                            elif rem_balloon.type == "energy":
+                                score += 1
+                                print("Energy balloon popped")
+                            elif rem_balloon.type == "number":
                                 score += 2
+                                print("Number balloon popped")
                             else:
                                 score += 1
+                            print("Balloon popped")
                             balloons.remove(rem_balloon)
                 else:
                     score += 1
                     balloons.remove(balloon)
+            prev_time = time.time()
 
         cv2.imshow("test", warped_roi)
     if cv2.waitKey(1) & 0xFF == ord('q'):
